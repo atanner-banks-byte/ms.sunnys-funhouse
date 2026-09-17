@@ -1,0 +1,1327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Playhouse 9</title>
+  <style>
+    :root {
+      --bg: #03070d;
+      --panel: rgba(11, 15, 22, 0.8);
+      --line: rgba(255,255,255,0.12);
+      --muted: #d0dae6;
+      --text: #edf4ff;
+      --danger: #ff5959;
+      --warning: #f7d778;
+      --good: #74f0b8;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: radial-gradient(circle at center, #0a121b 0%, #04070d 52%, #000 100%);
+      color: var(--text);
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      position: relative;
+      user-select: none;
+    }
+
+    #game-shell {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: #000;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+    }
+
+    #hud {
+      position: absolute;
+      top: 18px;
+      left: 18px;
+      width: min(340px, 36vw);
+      background: rgba(8, 12, 18, 0.68);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px 16px;
+      z-index: 25;
+      pointer-events: none;
+      box-shadow: 0 0 25px rgba(255, 89, 89, 0.08);
+      backdrop-filter: blur(4px);
+    }
+
+    #hud h2 {
+      margin: 0 0 12px;
+      font-size: 17px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--warning);
+    }
+
+    .goal {
+      margin: 6px 0;
+      font-size: 14px;
+      line-height: 1.4;
+      color: var(--text);
+      opacity: 0.92;
+    }
+
+    .goal.done {
+      color: var(--good);
+    }
+
+    #network {
+      position: absolute;
+      right: 18px;
+      top: 18px;
+      z-index: 25;
+      width: min(250px, 34vw);
+      padding: 12px;
+      background: rgba(8, 12, 18, 0.72);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      backdrop-filter: blur(4px);
+    }
+
+    #network strong, #network small {
+      display: block;
+    }
+
+    #network strong {
+      color: var(--good);
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    #network small {
+      margin: 6px 0 8px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    #network input, #network button {
+      min-width: 0;
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 6px;
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      font: inherit;
+      padding: 7px;
+    }
+
+    #network input {
+      width: 100%;
+      margin-bottom: 6px;
+    }
+
+    #network button {
+      width: 49%;
+      cursor: pointer;
+    }
+
+    #network button:hover {
+      background: rgba(116,240,184,0.14);
+    }
+
+    #message {
+      position: absolute;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      width: min(840px, calc(100% - 30px));
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      background: rgba(7, 10, 15, 0.7);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 18px;
+      color: var(--muted);
+      font-size: clamp(12px, 1.7vw, 18px);
+      z-index: 25;
+    }
+
+    #vignette {
+      position: absolute;
+      inset: 0;
+      z-index: 15;
+      pointer-events: none;
+      background: radial-gradient(circle, transparent 58%, rgba(0,0,0,0.55) 100%);
+    }
+
+    #scare-face {
+      position: absolute;
+      inset: 0;
+      z-index: 41;
+      display: none;
+      pointer-events: none;
+    }
+
+    #scare-face.active {
+      display: block;
+    }
+
+    #scare-face::before,
+    #scare-face::after {
+      content: "";
+      position: absolute;
+      top: 38%;
+      width: 7vw;
+      height: 11vw;
+      max-width: 82px;
+      max-height: 128px;
+      background: #ff3b28;
+      border-radius: 50%;
+      box-shadow: 0 0 35px 12px rgba(255, 45, 20, 0.7);
+    }
+
+    #scare-face::before { left: 38%; transform: rotate(9deg); }
+    #scare-face::after { right: 38%; transform: rotate(-9deg); }
+
+    #scare-mouth {
+      position: absolute;
+      left: 50%;
+      top: 54%;
+      width: min(24vw, 270px);
+      height: min(13vw, 150px);
+      transform: translateX(-50%);
+      background: #050506;
+      border: 5px solid #371014;
+      border-radius: 50% 50% 46% 46%;
+      box-shadow: 0 0 35px rgba(255, 35, 20, 0.5);
+    }
+
+    #scare-mouth::after {
+      content: "";
+      position: absolute;
+      inset: 12% 8%;
+      background: repeating-linear-gradient(90deg, #fff8dc 0 9px, #8d7370 9px 13px);
+      clip-path: polygon(0 0, 100% 0, 90% 100%, 10% 100%);
+    }
+
+    #overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(3, 6, 12, 0.86);
+      padding: 32px;
+    }
+
+    #overlay.hidden {
+      display: none;
+    }
+
+    .panel {
+      width: min(920px, 90vw);
+      background: rgba(11, 15, 22, 0.88);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 28px 26px;
+      box-shadow: 0 0 26px rgba(255, 89, 89, 0.12);
+      text-align: center;
+    }
+
+    .panel h1 {
+      margin: 0 0 14px;
+      font-size: clamp(32px, 5vw, 64px);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--danger);
+      text-shadow: 0 0 18px rgba(255, 89, 89, 0.38);
+    }
+
+    .panel p {
+      margin: 10px 0;
+      color: var(--muted);
+      font-size: clamp(15px, 1.9vw, 18px);
+      line-height: 1.7;
+    }
+
+    .panel button {
+      margin-top: 12px;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(255, 89, 89, 0.18), rgba(247, 215, 120, 0.12));
+      color: var(--text);
+      font: inherit;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 12px 26px;
+      cursor: pointer;
+      box-shadow: 0 0 20px rgba(255, 89, 89, 0.12);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .panel button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 0 24px rgba(255, 89, 89, 0.2);
+    }
+  </style>
+</head>
+<body>
+  <div id="game-shell">
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="hud">
+      <h2>Objectives</h2>
+      <div id="objectiveList"></div>
+    </div>
+
+    <div id="network">
+      <strong id="networkStatus">Offline</strong>
+      <small id="networkHelp">Host a room, then share the code with one other player.</small>
+      <input id="roomCode" type="text" placeholder="Paste room code" autocomplete="off" />
+      <button id="hostBtn" type="button">Host</button>
+      <button id="joinBtn" type="button">Join</button>
+    </div>
+
+    <div id="vignette"></div>
+    <div id="scare-face"><div id="scare-mouth"></div></div>
+    <div id="message">The factory is breathing. Stay quiet.</div>
+
+    <div id="overlay">
+      <div class="panel">
+        <h1 id="overlayTitle">Playhouse 9</h1>
+        <p id="overlayText">
+          The toy factory was sealed for years, but the silence inside kept changing. A voice no one built is calling from the dark.
+          Recover the fuse, restore power, gather the reels, unlock the gate, and escape before the smiling thing in the halls reaches you.
+        </p>
+        <button id="startBtn">Enter the Factory</button>
+        <button id="sandboxBtn" type="button">Sandbox Mode</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const objectiveList = document.getElementById('objectiveList');
+    const messageEl = document.getElementById('message');
+    const overlay = document.getElementById('overlay');
+    const overlayTitle = document.getElementById('overlayTitle');
+    const overlayText = document.getElementById('overlayText');
+    const startBtn = document.getElementById('startBtn');
+    const sandboxBtn = document.getElementById('sandboxBtn');
+    const scareFace = document.getElementById('scare-face');
+    const networkStatus = document.getElementById('networkStatus');
+    const networkHelp = document.getElementById('networkHelp');
+    const roomCode = document.getElementById('roomCode');
+    const hostBtn = document.getElementById('hostBtn');
+    const joinBtn = document.getElementById('joinBtn');
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x04070d);
+    scene.fog = new THREE.FogExp2(0x04070d, 0.06);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, canvas });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 220);
+    camera.position.set(0, 1.7, 13);
+
+    const ambient = new THREE.AmbientLight(0x1b2431, 0.17);
+    scene.add(ambient);
+
+    const moon = new THREE.DirectionalLight(0xb7c7de, 0.34);
+    moon.position.set(-10, 12, 8);
+    moon.castShadow = true;
+    moon.shadow.mapSize.set(1024, 1024);
+    scene.add(moon);
+
+    const extraLights = [
+      new THREE.PointLight(0xffd8a8, 1.2, 14, 2),
+      new THREE.PointLight(0xffc5a1, 1.2, 14, 2),
+      new THREE.PointLight(0xb0e6ff, 1.1, 14, 2),
+      new THREE.PointLight(0xffdfb0, 1.0, 12, 2)
+    ];
+    extraLights[0].position.set(-7, 3.5, 0);
+    extraLights[1].position.set(7, 3.5, 0);
+    extraLights[2].position.set(0, 3.5, -15);
+    extraLights[3].position.set(0, 3.5, 18);
+    extraLights.forEach(l => scene.add(l));
+
+    const flashlight = new THREE.SpotLight(0xf2e9d0, 2.8, 28, Math.PI / 6.8, 0.55, 1);
+    flashlight.position.set(0, 1.8, 0);
+    flashlight.castShadow = true;
+    flashlight.shadow.mapSize.set(1024, 1024);
+    scene.add(flashlight);
+
+    const flashlightTarget = new THREE.Object3D();
+    flashlightTarget.position.set(0, 1.7, -2.5);
+    scene.add(flashlightTarget);
+    flashlight.target = flashlightTarget;
+
+    function makeSurface(type) {
+      const colorCanvas = document.createElement('canvas');
+      const bumpCanvas = document.createElement('canvas');
+      colorCanvas.width = colorCanvas.height = bumpCanvas.width = bumpCanvas.height = 512;
+      const color = colorCanvas.getContext('2d');
+      const bump = bumpCanvas.getContext('2d');
+      const random = (min, max) => min + Math.random() * (max - min);
+
+      color.fillStyle = type === 'floor' ? '#172027' : type === 'wall' ? '#30353b' : type === 'metal' ? '#626b72' : '#555a5e';
+      color.fillRect(0, 0, 512, 512);
+      bump.fillStyle = '#128';
+      bump.fillRect(0, 0, 512, 512);
+
+      if (type === 'floor') {
+        color.strokeStyle = '#303b40';
+        color.lineWidth = 5;
+        bump.strokeStyle = '#a0a0a0';
+        bump.lineWidth = 7;
+        for (let i = 0; i <= 512; i += 64) {
+          color.beginPath(); color.moveTo(i, 0); color.lineTo(i, 512); color.stroke();
+          color.beginPath(); color.moveTo(0, i); color.lineTo(512, i); color.stroke();
+          bump.beginPath(); bump.moveTo(i, 0); bump.lineTo(i, 512); bump.stroke();
+          bump.beginPath(); bump.moveTo(0, i); bump.lineTo(512, i); bump.stroke();
+        }
+        for (let i = 0; i < 900; i++) {
+          const x = random(0, 512); const y = random(0, 512); const r = random(2, 18);
+          color.fillStyle = Math.random() > 0.5 ? 'rgba(5,10,12,0.18)' : 'rgba(170,150,105,0.08)';
+          color.beginPath(); color.ellipse(x, y, r * 2.2, r, random(0, Math.PI), 0, Math.PI * 2); color.fill();
+          bump.fillStyle = Math.random() > 0.5 ? '#80' : '#190';
+          bump.fillRect(x, y, random(2, 10), random(2, 10));
+        }
+      } else if (type === 'wall') {
+        for (let i = 0; i < 2600; i++) {
+          color.fillStyle = Math.random() > 0.5 ? 'rgba(235,235,220,0.07)' : 'rgba(5,8,10,0.12)';
+          color.fillRect(random(0, 512), random(0, 512), random(1, 8), random(1, 8));
+          bump.fillStyle = Math.random() > 0.5 ? '#170' : '#a0';
+          bump.fillRect(random(0, 512), random(0, 512), random(1, 5), random(1, 5));
+        }
+        color.strokeStyle = 'rgba(8,12,14,0.42)';
+        color.lineWidth = 2;
+        bump.strokeStyle = '#70';
+        bump.lineWidth = 3;
+        for (let i = 0; i < 22; i++) {
+          const x = random(0, 512); const y = random(0, 512);
+          color.beginPath(); color.moveTo(x, y); color.lineTo(x + random(-24, 24), y + random(18, 70)); color.stroke();
+          bump.beginPath(); bump.moveTo(x, y); bump.lineTo(x + random(-24, 24), y + random(18, 70)); bump.stroke();
+        }
+      } else if (type === 'metal') {
+        color.fillStyle = 'rgba(25,30,33,0.26)';
+        color.fillRect(0, 0, 512, 512);
+        bump.fillStyle = '#a0';
+        bump.fillRect(0, 0, 512, 512);
+        for (let i = 0; i < 36; i++) {
+          const y = i * 16 + random(-2, 2);
+          color.strokeStyle = i % 4 === 0 ? 'rgba(225,230,225,0.24)' : 'rgba(12,16,18,0.34)';
+          color.lineWidth = random(1, 4);
+          color.beginPath(); color.moveTo(0, y); color.lineTo(512, y + random(-3, 3)); color.stroke();
+          bump.strokeStyle = '#70'; bump.lineWidth = 3;
+          bump.beginPath(); bump.moveTo(0, y); bump.lineTo(512, y + random(-3, 3)); bump.stroke();
+        }
+        for (let i = 0; i < 90; i++) {
+          const x = random(0, 512); const y = random(0, 512);
+          color.fillStyle = 'rgba(126,55,28,0.32)';
+          color.beginPath(); color.ellipse(x, y, random(2, 14), random(1, 5), random(0, Math.PI), 0, Math.PI * 2); color.fill();
+          bump.fillStyle = '#50'; bump.fillRect(x, y, random(3, 14), random(2, 6));
+        }
+      } else if (type === 'concrete') {
+        for (let i = 0; i < 9000; i++) {
+          const x = random(0, 512); const y = random(0, 512); const s = random(1, 7);
+          color.fillStyle = Math.random() > 0.5 ? 'rgba(245,245,235,0.1)' : 'rgba(12,15,16,0.16)';
+          color.fillRect(x, y, s, s);
+          bump.fillStyle = Math.random() > 0.5 ? '#150' : '#90';
+          bump.fillRect(x, y, s, s);
+        }
+        color.strokeStyle = 'rgba(20,23,24,0.36)';
+        color.lineWidth = 3;
+        bump.strokeStyle = '#70';
+        bump.lineWidth = 4;
+        for (let i = 0; i < 18; i++) {
+          const x = random(0, 512); const y = random(0, 512);
+          color.beginPath(); color.moveTo(x, y); color.lineTo(x + random(-80, 80), y + random(-40, 80)); color.stroke();
+          bump.beginPath(); bump.moveTo(x, y); bump.lineTo(x + random(-80, 80), y + random(-40, 80)); bump.stroke();
+        }
+      }
+
+      const map = new THREE.CanvasTexture(colorCanvas);
+      const bumpMap = new THREE.CanvasTexture(bumpCanvas);
+      map.wrapS = map.wrapT = bumpMap.wrapS = bumpMap.wrapT = THREE.RepeatWrapping;
+      map.repeat.set(2, 2);
+      bumpMap.repeat.set(2, 2);
+      map.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      bumpMap.anisotropy = map.anisotropy;
+      return { map, bumpMap };
+    }
+
+    const floorSurface = makeSurface('floor');
+    const wallSurface = makeSurface('wall');
+    const metalSurface = makeSurface('metal');
+    const concreteSurface = makeSurface('concrete');
+    const floorMat = new THREE.MeshStandardMaterial({ map: floorSurface.map, bumpMap: floorSurface.bumpMap, bumpScale: 0.16, roughness: 0.72, metalness: 0.08 });
+    const wallMat = new THREE.MeshStandardMaterial({ map: wallSurface.map, bumpMap: wallSurface.bumpMap, bumpScale: 0.12, roughness: 0.94, metalness: 0.02 });
+    const metalMat = new THREE.MeshStandardMaterial({ map: metalSurface.map, bumpMap: metalSurface.bumpMap, bumpScale: 0.08, roughness: 0.42, metalness: 0.86 });
+    const concreteMat = new THREE.MeshStandardMaterial({ map: concreteSurface.map, bumpMap: concreteSurface.bumpMap, bumpScale: 0.2, roughness: 0.98, metalness: 0.02 });
+
+    function addFloor(x, z, w, d) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, 0.6, d), floorMat);
+      mesh.position.set(x, -0.35, z);
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+    }
+
+    function addWall(x, y, z, w, h, d) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
+      mesh.position.set(x, y, z);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+    }
+
+    function addMetalWall(x, y, z, w, h, d) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), metalMat);
+      mesh.position.set(x, y, z);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+    }
+
+    function addConcretePanel(x, y, z, w, h, d) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), concreteMat);
+      mesh.position.set(x, y, z);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+    }
+
+    function addCrate(x, y, z, sx, sy, sz) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), new THREE.MeshStandardMaterial({ color: 0x2a2e35, roughness: 0.96 }));
+      mesh.position.set(x, y, z);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+    }
+
+    function addGlowLight(x, y, z, color = 0xffdeaf) {
+      const l = new THREE.PointLight(color, 1.4, 14, 2);
+      l.position.set(x, y, z);
+      scene.add(l);
+    }
+
+    addFloor(0, 0, 34, 42);
+    addFloor(-18, -20, 16, 18);
+    addFloor(18, -20, 16, 18);
+    addFloor(0, -38, 32, 18);
+
+    addWall(0, 2.3, 21, 34, 4.6, 1);
+    addWall(0, 2.3, -21, 34, 4.6, 1);
+    addWall(-17, 2.3, 0, 1, 4.6, 42);
+    addWall(17, 2.3, 0, 1, 4.6, 42);
+    addWall(-9, 2.3, -8, 1, 4.6, 18);
+    addWall(9, 2.3, -8, 1, 4.6, 18);
+    addWall(-9, 2.3, -31, 1, 4.6, 10);
+    addWall(9, 2.3, -31, 1, 4.6, 10);
+    addWall(-27, 2.3, -20, 1, 4.6, 18);
+    addWall(27, 2.3, -20, 1, 4.6, 18);
+    addWall(0, 2.3, -45, 32, 4.6, 1);
+
+    const exitDoor = new THREE.Mesh(new THREE.BoxGeometry(4.2, 3.2, 0.5), new THREE.MeshStandardMaterial({ color: 0x5a3d28, roughness: 0.9 }));
+    exitDoor.position.set(0, 1.6, 20.4);
+    exitDoor.castShadow = true;
+    scene.add(exitDoor);
+
+    const generator = new THREE.Mesh(new THREE.BoxGeometry(2.8, 2.5, 1.8), new THREE.MeshStandardMaterial({ color: 0x4b525c, roughness: 0.8, metalness: 0.8 }));
+    generator.position.set(0, 1.2, -11.5);
+    generator.castShadow = true;
+    generator.receiveShadow = true;
+    scene.add(generator);
+
+    const fusePickup = new THREE.Mesh(
+      new THREE.BoxGeometry(0.5, 0.12, 0.5),
+      new THREE.MeshStandardMaterial({ color: 0xf7d778, emissive: 0x8f6700, emissiveIntensity: 0.8 })
+    );
+    fusePickup.position.set(11, 0.7, 11);
+    scene.add(fusePickup);
+
+    const keyPickup = new THREE.Mesh(
+      new THREE.BoxGeometry(0.44, 0.1, 0.44),
+      new THREE.MeshStandardMaterial({ color: 0x7fbaff, emissive: 0x0b4d8c, emissiveIntensity: 0.9 })
+    );
+    keyPickup.position.set(-11, 0.7, -28);
+    scene.add(keyPickup);
+
+    const tapePositions = [
+      new THREE.Vector3(-12, 0.7, 12),
+      new THREE.Vector3(11, 0.7, -12),
+      new THREE.Vector3(-23, 0.7, -28),
+      new THREE.Vector3(23, 0.7, -28)
+    ];
+
+    const tapes = tapePositions.map((pos, idx) => {
+      const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(0.5, 0.12, 0.38),
+        new THREE.MeshStandardMaterial({ color: 0xffd35a, emissive: 0x845a00, emissiveIntensity: 0.9 })
+      );
+      mesh.position.copy(pos);
+      mesh.rotation.y = idx * 0.8;
+      scene.add(mesh);
+      return { mesh, collected: false };
+    });
+
+    for (let x = -14; x <= 14; x += 4) {
+      addCrate(x, 0.8, 8, 1.5, 1.6, 1.5);
+    }
+    for (let x = -14; x <= 14; x += 5) {
+      addCrate(x, 0.8, -13, 1.8, 1.7, 1.8);
+    }
+
+    addMetalWall(-15, 1.6, -9, 0.7, 3.2, 10);
+    addMetalWall(15, 1.6, -9, 0.7, 3.2, 10);
+    addMetalWall(0, 1.6, -32, 12, 3.2, 0.7);
+    addMetalWall(0, 1.6, 8, 12, 3.2, 0.7);
+    addConcretePanel(-3, 2.1, -18, 6, 4, 0.7);
+    addConcretePanel(3, 2.1, -18, 6, 4, 0.7);
+
+    addGlowLight(-7, 3.5, 0, 0xffe7bb);
+    addGlowLight(7, 3.5, 0, 0xffe7bb);
+    addGlowLight(0, 3.5, -15, 0xffdca8);
+    addGlowLight(0, 3.5, 18, 0xffdca8);
+
+    const sword = new THREE.Group();
+    const swordBlade = new THREE.Mesh(
+      new THREE.BoxGeometry(0.18, 2.7, 0.34),
+      new THREE.MeshStandardMaterial({ color: 0xbaf8ff, emissive: 0x18a9dc, emissiveIntensity: 2.6, metalness: 0.92, roughness: 0.12 })
+    );
+    swordBlade.position.y = 1.35;
+    swordBlade.castShadow = true;
+    sword.add(swordBlade);
+
+    const bladeCore = new THREE.Mesh(
+      new THREE.BoxGeometry(0.07, 2.5, 0.38),
+      new THREE.MeshBasicMaterial({ color: 0xffffff })
+    );
+    bladeCore.position.y = 1.35;
+    sword.add(bladeCore);
+
+    const swordGuard = new THREE.Mesh(
+      new THREE.BoxGeometry(0.95, 0.12, 0.18),
+      new THREE.MeshStandardMaterial({ color: 0x1e5366, emissive: 0x0b7895, emissiveIntensity: 1.4, metalness: 0.82, roughness: 0.24 })
+    );
+    swordGuard.position.y = 0.02;
+    sword.add(swordGuard);
+
+    const swordHandle = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.13, 0.16, 0.82, 12),
+      new THREE.MeshStandardMaterial({ color: 0x252b32, roughness: 0.72, metalness: 0.52 })
+    );
+    swordHandle.position.y = -0.42;
+    sword.add(swordHandle);
+
+    const swordPommel = new THREE.Mesh(
+      new THREE.SphereGeometry(0.2, 12, 12),
+      new THREE.MeshStandardMaterial({ color: 0x73e8ff, emissive: 0x0b7895, emissiveIntensity: 2, metalness: 0.8, roughness: 0.2 })
+    );
+    swordPommel.position.y = -0.86;
+    sword.add(swordPommel);
+
+    const swordLight = new THREE.PointLight(0x54dcff, 1.8, 5, 2);
+    swordLight.position.set(0, 1.2, 0);
+    sword.add(swordLight);
+
+    sword.position.set(0.55, -0.35, -0.7);
+    sword.rotation.set(0.9, 0.3, -0.8);
+    camera.add(sword);
+    scene.add(camera);
+
+    const monsterSpawns = [
+      { x: -11, z: -5, color: 0xffd76e },
+      { x: 10, z: -7, color: 0xf59d6b },
+      { x: -12, z: -26, color: 0xff7d66 },
+      { x: 12, z: -26, color: 0xdfc66d },
+      { x: 0, z: -36, color: 0xfae6a6 },
+      { x: 24, z: -18, color: 0xffb347 }
+    ];
+
+    const monsters = [];
+
+    function createMonster(x, z, color) {
+      const group = new THREE.Group();
+      const skin = new THREE.MeshStandardMaterial({ color: 0x17191c, roughness: 0.9, metalness: 0.08 });
+      const skinLight = new THREE.MeshStandardMaterial({ color, roughness: 0.74, metalness: 0.05, emissive: color, emissiveIntensity: 0.16 });
+      const mouthMat = new THREE.MeshStandardMaterial({ color: 0x13090b, roughness: 0.94 });
+      const toothMat = new THREE.MeshStandardMaterial({ color: 0xe7dfc8, roughness: 0.68 });
+      const body = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.72, 0.58, 2.3, 14),
+        skin
+      );
+      body.position.y = 1.1;
+
+      const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.48, 0.46, 14), skin);
+      neck.position.y = 2.0;
+
+      const head = new THREE.Mesh(
+        new THREE.SphereGeometry(0.96, 24, 18),
+        skinLight
+      );
+      head.position.y = 2.45;
+
+      const jaw = new THREE.Mesh(new THREE.SphereGeometry(0.62, 18, 12), mouthMat);
+      jaw.scale.set(1.1, 0.5, 0.75);
+      jaw.position.set(0, 2.12, 0.52);
+
+      const toothGeo = new THREE.ConeGeometry(0.065, 0.24, 8);
+      const teeth = [];
+      for (let i = -3; i <= 3; i++) {
+        const tooth = new THREE.Mesh(toothGeo, toothMat);
+        tooth.position.set(i * 0.14, 2.2, 0.98);
+        tooth.rotation.x = Math.PI;
+        teeth.push(tooth);
+      }
+
+      const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.17, 14, 14), new THREE.MeshBasicMaterial({ color: 0xff2d2d }));
+      leftEye.position.set(-0.36, 2.58, 0.83);
+      const rightEye = leftEye.clone();
+      rightEye.position.x = 0.36;
+
+      const shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.78, 16, 12), skin);
+      shoulder.scale.set(1.45, 0.58, 0.7);
+      shoulder.position.y = 1.65;
+
+      const leftArm = new THREE.Group();
+      const rightArm = new THREE.Group();
+      const armGeo = new THREE.CylinderGeometry(0.18, 0.22, 1.35, 10);
+      const leftArmMesh = new THREE.Mesh(armGeo, skin);
+      const rightArmMesh = new THREE.Mesh(armGeo, skin);
+      leftArmMesh.position.y = -0.5;
+      rightArmMesh.position.y = -0.5;
+      leftArm.position.set(-0.72, 1.62, 0);
+      rightArm.position.set(0.72, 1.62, 0);
+      leftArm.rotation.z = -0.16;
+      rightArm.rotation.z = 0.16;
+      leftArm.add(leftArmMesh);
+      rightArm.add(rightArmMesh);
+
+      const clawGeo = new THREE.ConeGeometry(0.07, 0.42, 7);
+      const leftClaw = new THREE.Mesh(clawGeo, toothMat);
+      const rightClaw = new THREE.Mesh(clawGeo, toothMat);
+      leftClaw.position.set(0, -1.02, 0.05);
+      rightClaw.position.set(0, -1.02, 0.05);
+      leftClaw.rotation.x = Math.PI;
+      rightClaw.rotation.x = Math.PI;
+      leftArm.add(leftClaw);
+      rightArm.add(rightClaw);
+
+      const leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.29, 1.25, 10), skin);
+      const rightLeg = leftLeg.clone();
+      leftLeg.position.set(-0.34, 0.1, 0);
+      rightLeg.position.set(0.34, 0.1, 0);
+
+      group.add(body, neck, head, jaw, ...teeth, leftEye, rightEye, shoulder, leftArm, rightArm, leftLeg, rightLeg);
+      group.position.set(x, 0, z);
+      scene.add(group);
+
+      monsters.push({
+        group,
+        body,
+        leftArm,
+        rightArm,
+        leftLeg,
+        rightLeg,
+        leftEye,
+        rightEye,
+        alive: true,
+        baseX: x,
+        baseZ: z,
+        speed: 0.7 + Math.random() * 0.45,
+        drift: Math.random() * Math.PI * 2,
+        color,
+        phase: Math.random() * Math.PI * 2
+      });
+    }
+
+    function spawnMonsters() {
+      monsters.forEach(monster => scene.remove(monster.group));
+      monsters.length = 0;
+      monsterSpawns.forEach(s => createMonster(s.x, s.z, s.color));
+    }
+
+    const wallBoxes = [
+      { x: 0, z: 21, w: 34, d: 1 },
+      { x: 0, z: -21, w: 34, d: 1 },
+      { x: -17, z: 0, w: 1, d: 42 },
+      { x: 17, z: 0, w: 1, d: 42 },
+      { x: -9, z: -8, w: 1, d: 18 },
+      { x: 9, z: -8, w: 1, d: 18 },
+      { x: -9, z: -31, w: 1, d: 10 },
+      { x: 9, z: -31, w: 1, d: 10 },
+      { x: -27, z: -20, w: 1, d: 18 },
+      { x: 27, z: -20, w: 1, d: 18 },
+      { x: 0, z: -45, w: 32, d: 1 },
+      { x: -15, z: -9, w: 0.7, d: 10 },
+      { x: 15, z: -9, w: 0.7, d: 10 },
+      { x: 0, z: -32, w: 12, d: 0.7 },
+      { x: 0, z: 8, w: 12, d: 0.7 }
+    ];
+
+    const player = {
+      x: 0,
+      y: 1.7,
+      z: 12,
+      radius: 0.9,
+      speed: 5.1,
+      attackTimer: 0,
+      attackCooldown: 0,
+      swingDirection: 1
+    };
+
+    const keys = { w: false, a: false, s: false, d: false, shift: false };
+    let started = false;
+    let gameOver = false;
+    let won = false;
+    let fuseFound = false;
+    let powerOn = false;
+    let exitUnlocked = false;
+    let reelCount = 0;
+    let keyFound = false;
+    let flashlightCharge = 100;
+    let playerYaw = 0;
+    let playerPitch = 0;
+    let messageTimeout = 0;
+    let sandboxMode = false;
+    let scareTimer = 0;
+    let scareMonster = null;
+    let peer = null;
+    let connection = null;
+    let remotePlayer = null;
+    let lastNetworkSend = 0;
+
+    function setNetworkStatus(status, help) {
+      networkStatus.textContent = status;
+      networkHelp.textContent = help;
+    }
+
+    function createRemotePlayer() {
+      const group = new THREE.Group();
+      const body = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.34, 0.42, 1.65, 12),
+        new THREE.MeshStandardMaterial({ color: 0x4b8dff, emissive: 0x123d8a, emissiveIntensity: 0.45, roughness: 0.6 })
+      );
+      body.position.y = 1.0;
+      const head = new THREE.Mesh(
+        new THREE.SphereGeometry(0.34, 16, 16),
+        new THREE.MeshStandardMaterial({ color: 0xd4a37a, roughness: 0.82 })
+      );
+      head.position.y = 1.85;
+      const marker = new THREE.Mesh(
+        new THREE.TorusGeometry(0.5, 0.035, 8, 24),
+        new THREE.MeshBasicMaterial({ color: 0x65e8ff })
+      );
+      marker.rotation.x = Math.PI / 2;
+      marker.position.y = 0.04;
+      const sword = new THREE.Mesh(
+        new THREE.BoxGeometry(0.08, 1.25, 0.08),
+        new THREE.MeshStandardMaterial({ color: 0xbaf8ff, emissive: 0x18a9dc, emissiveIntensity: 2.2 })
+      );
+      sword.position.set(0.42, 0.85, -0.18);
+      sword.rotation.z = -0.8;
+      group.add(body, head, marker, sword);
+      scene.add(group);
+      return { group, sword, attackTimer: 0, target: new THREE.Vector3(), targetYaw: 0 };
+    }
+
+    function sendNetworkState(now) {
+      if (!connection || !connection.open || now - lastNetworkSend < 50) return;
+      lastNetworkSend = now;
+      connection.send({
+        type: 'state',
+        x: player.x,
+        z: player.z,
+        yaw: playerYaw,
+        swing: player.attackTimer > 0 ? player.swingDirection : 0
+      });
+    }
+
+    function handleNetworkData(data) {
+      if (!data || data.type !== 'state') return;
+      if (!remotePlayer) remotePlayer = createRemotePlayer();
+      remotePlayer.target.set(data.x, 0, data.z);
+      remotePlayer.targetYaw = data.yaw || 0;
+      if (data.swing && remotePlayer.attackTimer <= 0) remotePlayer.attackTimer = 0.26;
+    }
+
+    function updateRemotePlayer(dt) {
+      if (!remotePlayer) return;
+      remotePlayer.group.visible = Boolean(connection && connection.open);
+      remotePlayer.group.position.lerp(remotePlayer.target, Math.min(1, dt * 12));
+      remotePlayer.group.rotation.y += (remotePlayer.targetYaw - remotePlayer.group.rotation.y) * Math.min(1, dt * 12);
+      if (remotePlayer.attackTimer > 0) {
+        remotePlayer.attackTimer -= dt;
+        const progress = 1 - remotePlayer.attackTimer / 0.26;
+        remotePlayer.sword.rotation.z = -0.8 + Math.sin(progress * Math.PI) * 2.1;
+      } else {
+        remotePlayer.sword.rotation.z = -0.8;
+      }
+    }
+
+    function attachConnection(nextConnection) {
+      connection = nextConnection;
+      connection.on('open', () => {
+        setNetworkStatus('Online', 'Connected to another player. Your movement and swings are shared.');
+      });
+      connection.on('data', handleNetworkData);
+      connection.on('close', () => {
+        connection = null;
+        if (remotePlayer) remotePlayer.group.visible = false;
+        setNetworkStatus('Offline', 'The other player disconnected. Host or join again.');
+      });
+      connection.on('error', () => setNetworkStatus('Connection error', 'Check the room code and try again.'));
+    }
+
+    hostBtn.addEventListener('click', () => {
+      if (peer) return;
+      peer = new Peer();
+      setNetworkStatus('Hosting...', 'Waiting for another player. Share your room code when it appears.');
+      peer.on('open', id => {
+        roomCode.value = id;
+        setNetworkStatus('Room ready', 'Share this room code with one other player.');
+      });
+      peer.on('connection', attachConnection);
+      peer.on('error', () => setNetworkStatus('Host error', 'The online service could not create this room.'));
+    });
+
+    joinBtn.addEventListener('click', () => {
+      const id = roomCode.value.trim();
+      if (!id || peer) return;
+      peer = new Peer();
+      setNetworkStatus('Joining...', 'Connecting to the host room.');
+      peer.on('open', () => attachConnection(peer.connect(id)));
+      peer.on('error', () => setNetworkStatus('Join error', 'That room code may be expired or incorrect.'));
+    });
+
+    function setMessage(text, time = 2300) {
+      messageEl.textContent = text;
+      messageTimeout = time;
+    }
+
+    function updateObjectives() {
+      if (sandboxMode) {
+        objectiveList.innerHTML = '<div class="goal done">Sandbox: free exploration</div><div class="goal">Sword testing enabled</div><div class="goal">No objectives or monster pressure</div>';
+        return;
+      }
+      const goals = [
+        { text: '1. Find the fuse', done: fuseFound },
+        { text: '2. Restore power', done: powerOn },
+        { text: '3. Recover all 4 reels', done: reelCount >= 4 },
+        { text: '4. Unlock the emergency gate', done: exitUnlocked },
+        { text: '5. Escape the factory', done: won }
+      ];
+      objectiveList.innerHTML = goals.map(g => '<div class="goal ' + (g.done ? 'done' : '') + '">' + g.text + '</div>').join('');
+    }
+
+    function beginGame() {
+      started = true;
+      gameOver = false;
+      won = false;
+      overlay.classList.add('hidden');
+      document.body.requestPointerLock();
+      setMessage(sandboxMode ? 'Sandbox active. Explore the factory and test your sword.' : 'The factory is quiet. Don\'t make a sound.', 2600);
+    }
+
+    function resetGameState(mode = 'story') {
+      started = false;
+      gameOver = false;
+      won = false;
+      sandboxMode = mode === 'sandbox';
+      fuseFound = false;
+      powerOn = false;
+      exitUnlocked = false;
+      reelCount = 0;
+      keyFound = false;
+      flashlightCharge = 100;
+      player.x = 0;
+      player.z = 12;
+      playerYaw = 0;
+      playerPitch = 0;
+      player.attackTimer = 0;
+      player.attackCooldown = 0;
+      player.swingDirection = 1;
+      scareTimer = 0;
+      scareMonster = null;
+      scareFace.classList.remove('active');
+      sword.visible = true;
+      if (fusePickup) fusePickup.visible = true;
+      if (keyPickup) keyPickup.visible = true;
+      tapes.forEach(t => { t.collected = false; t.mesh.visible = true; });
+      monsters.forEach(m => {
+        m.alive = true;
+        m.group.visible = true;
+        m.group.scale.setScalar(1);
+        m.group.rotation.x = 0;
+      });
+      camera.fov = 72;
+      camera.updateProjectionMatrix();
+      exitDoor.material.color.setHex(0x5a3d28);
+      ambient.intensity = sandboxMode ? 0.3 : 0.17;
+      scene.fog.density = sandboxMode ? 0.045 : 0.06;
+      if (sandboxMode) {
+        powerOn = true;
+        exitUnlocked = true;
+        exitDoor.material.color.setHex(0x58d8a5);
+      }
+      updateObjectives();
+      if (monsters.length === 0) spawnMonsters();
+    }
+
+    function triggerJumpscare() {
+      if (gameOver) return;
+      gameOver = true;
+      scareTimer = 1.1;
+      scareMonster = monsters.find(monster => monster.alive) || null;
+      if (scareMonster) {
+        scareMonster.group.scale.setScalar(1.15);
+        scareMonster.group.rotation.x = -0.18;
+      }
+      scareFace.classList.add('active');
+      const flash = document.createElement('div');
+      flash.style.position = 'absolute';
+      flash.style.inset = '0';
+      flash.style.background = 'radial-gradient(circle, rgba(255,80,80,0.96) 0%, rgba(0,0,0,0.98) 56%, rgba(0,0,0,1) 100%)';
+      flash.style.zIndex = '40';
+      flash.style.pointerEvents = 'none';
+      flash.style.opacity = '0';
+      document.getElementById('game-shell').appendChild(flash);
+      let alpha = 0;
+      const tick = () => {
+        alpha += 0.07;
+        flash.style.opacity = Math.min(0.88, alpha);
+        if (alpha < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+
+      setTimeout(() => {
+        scareFace.classList.remove('active');
+        flash.remove();
+        overlayTitle.textContent = 'Caught';
+        overlayText.textContent = 'It was waiting in the dark. The factory never lets go of the people who hear it. Press the button below to try again.';
+        startBtn.textContent = 'Retry';
+        overlay.classList.remove('hidden');
+      }, 900);
+    }
+
+    function winGame() {
+      if (won || gameOver) return;
+      won = true;
+      gameOver = true;
+      overlayTitle.textContent = 'You Escaped';
+      overlayText.textContent = 'The gate swings open in the smoke and silence. You made it out—but the smile in the dark still remembers your footsteps.';
+      startBtn.textContent = 'Play Again';
+      overlay.classList.remove('hidden');
+      setMessage('The exit door opens. You are alive.', 2600);
+    }
+
+    function canMoveTo(x, z) {
+      for (const wall of wallBoxes) {
+        const hw = wall.w / 2;
+        const hd = wall.d / 2;
+        const dx = Math.abs(x - wall.x);
+        const dz = Math.abs(z - wall.z);
+        if (dx < hw + player.radius && dz < hd + player.radius) return false;
+      }
+      return true;
+    }
+
+    function updateFlashlight() {
+      flashlight.position.set(player.x, player.y, player.z);
+      const dir = new THREE.Vector3(Math.sin(playerYaw), 0, Math.cos(playerYaw));
+      dir.multiplyScalar(4);
+      flashlightTarget.position.set(player.x + dir.x, player.y + Math.sin(playerPitch) * 1.2, player.z + dir.z);
+      flashlight.target = flashlightTarget;
+
+      if (keys.shift) flashlightCharge = Math.max(0, flashlightCharge - 0.8 * 1/60);
+      else flashlightCharge = Math.max(0, flashlightCharge - 0.32 * 1/60);
+
+      if (flashlightCharge <= 0) flashlight.intensity = 0.25;
+      else flashlight.intensity = 2.9;
+    }
+
+    function collectObjectives() {
+      if (!fuseFound && Math.hypot(player.x - 11, player.z - 11) < 2.0) {
+        fuseFound = true;
+        fusePickup.visible = false;
+        setMessage('Fuse recovered. The generator is ready.', 2300);
+      }
+
+      if (!keyFound && Math.hypot(player.x + 11, player.z + 28) < 2.0) {
+        keyFound = true;
+        keyPickup.visible = false;
+        setMessage('Service key found. The gate can open.', 2300);
+      }
+
+      for (const tape of tapes) {
+        if (!tape.collected && Math.hypot(player.x - tape.mesh.position.x, player.z - tape.mesh.position.z) < 1.8) {
+          tape.collected = true;
+          tape.mesh.visible = false;
+          reelCount += 1;
+          setMessage('Audio reel recovered. ' + reelCount + '/4 found.', 2100);
+        }
+      }
+
+      if (fuseFound && !powerOn && Math.abs(player.x) < 3 && Math.abs(player.z + 11) < 2.5) {
+        powerOn = true;
+        ambient.intensity = 0.38;
+        scene.fog.density = 0.045;
+        setMessage('Power restored. The lights flicker back.', 2600);
+      }
+
+      if (powerOn && reelCount >= 4 && keyFound && !exitUnlocked) {
+        exitUnlocked = true;
+        exitDoor.material.color.setHex(0x58d8a5);
+        setMessage('The gate is unlocked. Run for the front exit.', 2400);
+      }
+    }
+
+    function triggerAttack() {
+      if (!started || gameOver || player.attackCooldown > 0) return;
+      player.attackTimer = 0.26;
+      player.attackCooldown = 0.38;
+      player.swingDirection *= -1;
+      sword.rotation.z = player.swingDirection > 0 ? -1.45 : 0.35;
+      const attackDir = new THREE.Vector3(Math.sin(playerYaw), Math.sin(playerPitch), Math.cos(playerYaw));
+      for (const monster of monsters) {
+        if (!monster.alive) continue;
+        const pos = monster.group.position;
+        const toMonster = new THREE.Vector3(pos.x - player.x, pos.y - player.y, pos.z - player.z);
+        if (toMonster.length() < 3.2) {
+          const dot = attackDir.normalize().dot(toMonster.clone().normalize());
+          if (dot > 0.35) {
+            monster.alive = false;
+            monster.group.visible = false;
+            setMessage('You cut one down. Keep moving.', 1200);
+          }
+        }
+      }
+    }
+
+    function updateMonsterAI(dt) {
+      for (const monster of monsters) {
+        if (!monster.alive) continue;
+        const motion = performance.now() * 0.004 + monster.phase;
+        const breathing = Math.sin(motion) * 0.035;
+        monster.body.scale.y = 1 + breathing;
+        monster.leftArm.rotation.x = Math.sin(motion * 0.8) * 0.18;
+        monster.rightArm.rotation.x = -Math.sin(motion * 0.8) * 0.18;
+        monster.leftLeg.rotation.x = Math.sin(motion) * 0.12;
+        monster.rightLeg.rotation.x = -Math.sin(motion) * 0.12;
+        monster.leftEye.scale.setScalar(1 + Math.max(0, Math.sin(motion * 0.65)) * 0.18);
+        monster.rightEye.scale.copy(monster.leftEye.scale);
+        if (sandboxMode) {
+          monster.group.rotation.y += Math.sin(performance.now() * 0.001 + monster.drift) * 0.001;
+          continue;
+        }
+        const dx = player.x - monster.group.position.x;
+        const dz = player.z - monster.group.position.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+
+        if (dist < 12) {
+          const speed = monster.speed * (1.4 + Math.min(dist, 8) / 8);
+          monster.group.position.x += (dx / (dist || 1)) * speed * dt;
+          monster.group.position.z += (dz / (dist || 1)) * speed * dt;
+        } else {
+          const drift = performance.now() * 0.0012 + monster.drift;
+          monster.group.position.x += Math.sin(drift) * 0.08 * dt;
+          monster.group.position.z += Math.cos(drift * 1.2) * 0.08 * dt;
+        }
+
+        monster.group.lookAt(player.x, 1.8, player.z);
+
+        if (dist < 1.7) {
+          triggerJumpscare();
+        }
+      }
+    }
+
+    function updatePlayer(dt) {
+      if (!started || gameOver) return;
+
+      if (player.attackTimer > 0) {
+        player.attackTimer -= dt;
+        const progress = 1 - player.attackTimer / 0.26;
+        const startAngle = player.swingDirection > 0 ? -1.45 : 0.35;
+        const endAngle = player.swingDirection > 0 ? 0.35 : -1.45;
+        const arc = progress < 0.5 ? progress * 2 : 1 - (progress - 0.5) * 2;
+        sword.rotation.z = startAngle + (endAngle - startAngle) * arc;
+        sword.rotation.x = 0.9 + Math.sin(progress * Math.PI) * 0.28;
+      } else {
+        sword.rotation.z = player.swingDirection > 0 ? -0.8 : -0.35;
+        sword.rotation.x = 0.9;
+      }
+
+      if (player.attackCooldown > 0) {
+        player.attackCooldown -= dt;
+      }
+
+      const fX = Math.sin(playerYaw);
+      const fZ = Math.cos(playerYaw);
+      const sX = Math.cos(playerYaw);
+      const sZ = -Math.sin(playerYaw);
+
+      let moveX = 0;
+      let moveZ = 0;
+
+      if (keys.w) { moveX += fX; moveZ += fZ; }
+      if (keys.s) { moveX -= fX; moveZ -= fZ; }
+      if (keys.a) { moveX -= sX; moveZ -= sZ; }
+      if (keys.d) { moveX += sX; moveZ += sZ; }
+
+      if (moveX || moveZ) {
+        const len = Math.hypot(moveX, moveZ) || 1;
+        moveX /= len; moveZ /= len;
+        const speedMult = keys.shift ? 1.6 : 1;
+        const nextX = player.x + moveX * player.speed * speedMult * dt;
+        const nextZ = player.z + moveZ * player.speed * speedMult * dt;
+        if (canMoveTo(nextX, player.z)) player.x = nextX;
+        if (canMoveTo(player.x, nextZ)) player.z = nextZ;
+      }
+
+      player.x = THREE.MathUtils.clamp(player.x, -15.8, 15.8);
+      player.z = THREE.MathUtils.clamp(player.z, -45, 21.5);
+
+      if (!sandboxMode && exitUnlocked && player.z > 17 && Math.abs(player.x) < 3) winGame();
+
+      if (!powerOn) flashlightCharge = Math.max(0, flashlightCharge - 0.45 * dt);
+      else flashlightCharge = Math.min(100, flashlightCharge + 1.2 * dt);
+
+      collectObjectives();
+      updateObjectives();
+      updateFlashlight();
+    }
+
+    function update(dt) {
+      if (messageTimeout > 0) {
+        messageTimeout -= dt * 1000;
+        if (messageTimeout <= 0) messageEl.textContent = 'The factory is breathing. Stay quiet.';
+      }
+
+      if (scareTimer > 0) {
+        scareTimer -= dt;
+        camera.position.x = player.x + (Math.random() - 0.5) * 0.16;
+        camera.position.y = player.y + (Math.random() - 0.5) * 0.16;
+        camera.position.z = player.z + (Math.random() - 0.5) * 0.12;
+        camera.fov = 72 + (1.1 - Math.max(0, scareTimer)) * 22;
+        camera.updateProjectionMatrix();
+        if (scareMonster) {
+          const lunge = 1 + Math.max(0, 1.1 - scareTimer) * 0.9;
+          scareMonster.group.scale.setScalar(lunge);
+        }
+      }
+
+      if (!started || gameOver) {
+        renderer.render(scene, camera);
+        return;
+      }
+
+      updatePlayer(dt);
+      updateMonsterAI(dt);
+      updateRemotePlayer(dt);
+      sendNetworkState(performance.now());
+
+      camera.position.set(player.x, player.y, player.z);
+      camera.rotation.order = 'YXZ';
+      camera.rotation.y = playerYaw;
+      camera.rotation.x = playerPitch;
+
+      renderer.render(scene, camera);
+    }
+
+    document.addEventListener('keydown', (event) => {
+      const key = event.key.toLowerCase();
+      if (key === 'w' || key === 'arrowup') keys.w = true;
+      if (key === 'a' || key === 'arrowleft') keys.a = true;
+      if (key === 's' || key === 'arrowdown') keys.s = true;
+      if (key === 'd' || key === 'arrowright') keys.d = true;
+      if (key === 'shift') keys.shift = true;
+      if (event.code === 'Space' && !started) beginGame();
+    });
+
+    document.addEventListener('keyup', (event) => {
+      const key = event.key.toLowerCase();
+      if (key === 'w' || key === 'arrowup') keys.w = false;
+      if (key === 'a' || key === 'arrowleft') keys.a = false;
+      if (key === 's' || key === 'arrowdown') keys.s = false;
+      if (key === 'd' || key === 'arrowright') keys.d = false;
+      if (key === 'shift') keys.shift = false;
+    });
+
+    document.addEventListener('mousemove', (event) => {
+      if (document.pointerLockElement === document.body && started && !gameOver) {
+        playerYaw -= event.movementX * 0.0023;
+        playerPitch -= event.movementY * 0.0021;
+        playerPitch = THREE.MathUtils.clamp(playerPitch, -1.4, 1.4);
+      }
+    });
+
+    document.addEventListener('mousedown', (event) => {
+      if (event.button === 0) triggerAttack();
+    });
+
+    document.addEventListener('click', () => {
+      if (!started && !gameOver) beginGame();
+      if (document.pointerLockElement !== document.body && started && !gameOver) {
+        document.body.requestPointerLock();
+      }
+    });
+
+    startBtn.addEventListener('click', () => {
+      overlayTitle.textContent = 'Playhouse 9';
+      overlayText.textContent = 'The toy factory was sealed for years, but the silence inside kept changing. A voice no one built is calling from the dark. Recover the fuse, restore power, gather the reels, unlock the gate, and escape before the smiling thing in the halls reaches you.';
+      startBtn.textContent = 'Enter the Factory';
+      resetGameState('story');
+      spawnMonsters();
+      beginGame();
+    });
+
+    sandboxBtn.addEventListener('click', () => {
+      overlayTitle.textContent = 'Factory Sandbox';
+      overlayText.textContent = 'Explore the entire factory with the lights on. Story objectives and monster pursuit are disabled, while the laser sword remains active so you can practice its alternating swings.';
+      sandboxBtn.textContent = 'Restart Sandbox';
+      resetGameState('sandbox');
+      spawnMonsters();
+      beginGame();
+    });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    spawnMonsters();
+    updateObjectives();
+    renderer.render(scene, camera);
+
+    let lastTime = 0;
+    function loop(time) {
+      const dt = Math.min((time - lastTime) / 1000 || 0.016, 0.033);
+      lastTime = time;
+      update(dt);
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
